@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat — Choose your role</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'] },
+          colors: {
+            ink: '#1a1a1a',
+            paper: '#f7f6f3',
+            line: '#e7e5e0',
+            muted: '#6b6b6b',
+            accent: '#ff5a36',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+    .role-card { transition: transform .25s ease, border-color .25s ease, background-color .25s ease; }
+    .role-card:hover { transform: translateY(-2px); border-color: #1a1a1a; }
+    .role-card:hover .arrow { transform: translateX(4px); }
+    .arrow { transition: transform .25s ease; }
+  </style>
+</head>
+<body class="min-h-screen bg-paper text-ink antialiased">
+  <main class="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+    <div class="w-full max-w-2xl">
+      <!-- Header -->
+      <div class="mb-10 sm:mb-14 text-center sm:text-left">
+        <div class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted mb-3">
+          <span class="w-6 h-px bg-muted"></span>
+          <span>Live chat</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-bold leading-tight tracking-tight">
+          Welcome.<br />
+          <span class="text-muted font-medium">How will you be joining today?</span>
+        </h1>
+      </div>
+
+      <!-- Role cards -->
+      <div class="grid gap-4 sm:grid-cols-2">
+        <a href="/guest.html"
+           class="role-card group block rounded-2xl border border-line bg-white p-6 sm:p-7">
+          <div class="flex items-center justify-between mb-6">
+            <div class="w-10 h-10 rounded-full bg-paper border border-line flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0v.75H4.5v-.75z" />
+              </svg>
+            </div>
+            <span class="arrow text-muted">→</span>
+          </div>
+          <div class="text-lg font-semibold mb-1">I'm a guest</div>
+          <p class="text-sm text-muted leading-relaxed">Start a new conversation with the support team. No account needed.</p>
+        </a>
+
+        <a href="/admin.html"
+           class="role-card group block rounded-2xl border border-line bg-ink text-white p-6 sm:p-7">
+          <div class="flex items-center justify-between mb-6">
+            <div class="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span class="arrow text-white/60">→</span>
+          </div>
+          <div class="text-lg font-semibold mb-1">I'm an admin</div>
+          <p class="text-sm text-white/60 leading-relaxed">View incoming chats and respond to your guests in real time.</p>
+        </a>
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-10 text-xs text-muted text-center sm:text-left">
+        Powered by Socket.IO &middot; MySQL
+      </div>
+    </div>
+  </main>
+</body>
+</html>

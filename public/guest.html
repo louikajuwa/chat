@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'] },
+          colors: {
+            ink: '#1a1a1a', paper: '#f7f6f3', line: '#e7e5e0',
+            muted: '#6b6b6b', accent: '#ff5a36',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    html, body { height: 100%; height: 100dvh; }
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .scroll-y { scrollbar-width: thin; scrollbar-color: #d6d3cb transparent; }
+    .scroll-y::-webkit-scrollbar { width: 6px; }
+    .scroll-y::-webkit-scrollbar-thumb { background: #d6d3cb; border-radius: 3px; }
+    .bubble img { max-height: 240px; max-width: 100%; border-radius: 12px; display: block; }
+    .bubble a { word-break: break-all; }
+    textarea { resize: none; }
+  </style>
+</head>
+<body class="bg-paper text-ink antialiased flex flex-col overflow-hidden">
+  <!-- Onboarding -->
+  <section id="onboard" class="flex-1 flex items-center justify-center p-6">
+    <div class="w-full max-w-md bg-white border border-line rounded-3xl p-6 sm:p-8 shadow-sm">
+      <div class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted mb-3">
+        <span class="w-6 h-px bg-muted"></span><span>Live chat</span>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Hi there.</h1>
+      <p class="text-sm text-muted mb-6">Tell us your name and we'll get you connected.</p>
+      <form id="onboard-form" class="space-y-4">
+        <div>
+          <label for="name" class="block text-xs font-medium text-muted mb-1.5">Your name</label>
+          <input id="name" type="text" required maxlength="80" autocomplete="name"
+                 class="w-full px-4 py-3 bg-paper border border-line rounded-xl text-sm focus:outline-none focus:border-ink transition-colors"
+                 placeholder="e.g. Sam" />
+        </div>
+        <button type="submit"
+                class="w-full bg-ink text-white py-3 rounded-xl text-sm font-semibold hover:bg-black transition-colors">
+          Start chatting
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Chat -->
+  <section id="chat" class="hidden flex-1 flex flex-col min-h-0 overflow-hidden">
+    <!-- Header -->
+    <header class="px-4 sm:px-6 h-14 flex items-center justify-between border-b border-line bg-white flex-shrink-0">
+      <div class="min-w-0">
+        <div class="text-[10px] uppercase tracking-[0.2em] text-muted">You're chatting as</div>
+        <div id="me-name" class="text-sm font-semibold truncate"></div>
+      </div>
+      <button id="quit-btn" class="text-xs text-muted hover:text-ink px-2 py-1.5">End chat</button>
+    </header>
+
+    <!-- Messages -->
+    <div id="messages-container" class="flex-1 overflow-y-auto scroll-y px-4 sm:px-6 py-4 min-h-0">
+      <div id="messages-loading" class="hidden text-center text-xs text-muted py-3">Loading older messages…</div>
+      <div id="messages"></div>
+      <div id="empty-hint" class="text-center text-sm text-muted py-12">Say hello to start the conversation.</div>
+    </div>
+
+    <!-- Composer -->
+    <form id="chat-form" class="border-t border-line p-3 sm:p-4 flex-shrink-0 bg-white">
+      <div id="file-chip" class="hidden mb-2 inline-flex items-center gap-2 max-w-full bg-paper border border-line rounded-full pl-3 pr-2 py-1 text-xs">
+        <svg class="w-3.5 h-3.5 text-muted flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25V9m7.5 0H8.25m7.5 0v.375c0 .621-.504 1.125-1.125 1.125h-5.25A1.125 1.125 0 018.25 9.375V9m7.5 0L18 11.25v9.375A1.125 1.125 0 0116.875 21.75h-9.75A1.125 1.125 0 016 20.625v-9.375L8.25 9" />
+        </svg>
+        <span id="file-chip-name" class="truncate"></span>
+        <button type="button" id="file-chip-remove" class="w-5 h-5 rounded-full hover:bg-line flex-shrink-0 flex items-center justify-center text-muted" aria-label="Remove file">×</button>
+      </div>
+      <div class="flex items-end gap-2">
+        <label for="file-input" class="cursor-pointer p-2.5 text-muted hover:text-ink rounded-lg" aria-label="Attach file">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+          </svg>
+        </label>
+        <input id="file-input" type="file" class="hidden" />
+        <textarea id="message-input" rows="1"
+                  class="flex-1 px-4 py-2.5 bg-paper border border-line rounded-2xl text-sm focus:outline-none focus:border-ink transition-colors max-h-32"
+                  placeholder="Type a message…"></textarea>
+        <button id="send-btn" type="submit"
+                class="p-2.5 bg-ink text-white rounded-full disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black transition-colors flex-shrink-0"
+                aria-label="Send" disabled>
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+          </svg>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-ink text-white text-sm px-4 py-2 rounded-full shadow-lg opacity-0 pointer-events-none transition-opacity z-50"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // ---------- State ----------
+    const state = {
+      guestName: localStorage.getItem('guestName') || null,
+      room: localStorage.getItem('room') || null,
+      messageIds: new Set(),
+      oldestMessageId: null,
+      hasMoreMessages: false,
+      loadingMoreMessages: false,
+      historyLoaded: false,
+    };
+
+    // ---------- Refs ----------
+    const $ = (id) => document.getElementById(id);
+    const onboardSection = $('onboard');
+    const chatSection = $('chat');
+    const onboardForm = $('onboard-form');
+    const nameInput = $('name');
+    const meName = $('me-name');
+    const quitBtn = $('quit-btn');
+    const messagesEl = $('messages');
+    const messagesContainer = $('messages-container');
+    const messagesLoading = $('messages-loading');
+    const emptyHint = $('empty-hint');
+    const form = $('chat-form');
+    const messageInput = $('message-input');
+    const fileInput = $('file-input');
+    const fileChip = $('file-chip');
+    const fileChipName = $('file-chip-name');
+    const fileChipRemove = $('file-chip-remove');
+    const sendBtn = $('send-btn');
+    const toast = $('toast');
+
+    // ---------- Utils ----------
+    const escapeHtml = (s) =>
+      String(s ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+    const isImage = (p) => /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(p || '');
+    const fileNameFromPath = (p) =>
+      String(p || '').split('/').pop().replace(/^[a-f0-9]{16}-|^\d{10,}-/, '');
+
+    function fmtTime(d) {
+      const date = new Date(d);
+      if (Number.isNaN(date.getTime())) return '';
+      const now = new Date();
+      const sameDay = date.toDateString() === now.toDateString();
+      return sameDay
+        ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.opacity = '1';
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => (toast.style.opacity = '0'), 2500);
+    }
+
+    // ---------- Onboarding ----------
+    function showChat() {
+      onboardSection.classList.add('hidden');
+      chatSection.classList.remove('hidden');
+      meName.textContent = state.guestName;
+    }
+
+    onboardForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      if (!name) return;
+      const room = 'room-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+      localStorage.setItem('guestName', name);
+      localStorage.setItem('room', room);
+      state.guestName = name;
+      state.room = room;
+      socket.emit('guestConnected', { guestName: name, room });
+      showChat();
+    });
+
+    quitBtn.addEventListener('click', () => {
+      localStorage.removeItem('guestName');
+      localStorage.removeItem('room');
+      location.reload();
+    });
+
+    // ---------- Messages ----------
+    function buildAttachmentNode(path) {
+      const safe = escapeHtml(path);
+      if (isImage(path)) {
+        return `<a href="${safe}" target="_blank" rel="noopener" class="block mt-1.5"><img src="${safe}" alt="attachment"/></a>`;
+      }
+      return `<a href="${safe}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 mt-1.5 text-xs underline opacity-90">
+        <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32" />
+        </svg>
+        <span class="truncate">${escapeHtml(fileNameFromPath(path))}</span>
+      </a>`;
+    }
+
+    function buildMessageNode(msg) {
+      if (state.messageIds.has(msg.id)) return null;
+      state.messageIds.add(msg.id);
+      state.oldestMessageId =
+        state.oldestMessageId == null ? msg.id : Math.min(state.oldestMessageId, msg.id);
+
+      const isMine = msg.sender_name === state.guestName;
+      const wrap = document.createElement('div');
+      wrap.dataset.id = msg.id;
+      wrap.className = 'flex flex-col mb-3 ' + (isMine ? 'items-end' : 'items-start');
+
+      const bubble = document.createElement('div');
+      bubble.className =
+        'bubble max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ' +
+        (isMine ? 'bg-ink text-white' : 'bg-white border border-line text-ink');
+
+      let html = '';
+      if (msg.message) {
+        html += `<div class="whitespace-pre-wrap break-words">${escapeHtml(msg.message)}</div>`;
+      }
+      if (msg.attachment_path) html += buildAttachmentNode(msg.attachment_path);
+      bubble.innerHTML = html;
+
+      const meta = document.createElement('div');
+      meta.className = 'text-[10px] text-muted mt-1 px-1';
+      meta.textContent =
+        (isMine ? 'You' : escapeHtml(msg.sender_name || 'Support')) + ' · ' + fmtTime(msg.created_at);
+
+      wrap.appendChild(bubble);
+      wrap.appendChild(meta);
+      return wrap;
+    }
+
+    function appendMessage(msg) {
+      const nearBottom = isNearBottom();
+      const node = buildMessageNode(msg);
+      if (!node) return;
+      messagesEl.appendChild(node);
+      emptyHint.classList.add('hidden');
+      if (nearBottom) scrollToBottom();
+    }
+
+    function prependMessages(msgs) {
+      const prevHeight = messagesContainer.scrollHeight;
+      const prevTop = messagesContainer.scrollTop;
+      const frag = document.createDocumentFragment();
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const node = buildMessageNode(msgs[i]);
+        if (node) frag.prepend(node);
+      }
+      messagesEl.prepend(frag);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight - prevHeight + prevTop;
+    }
+
+    function setMessages(msgs) {
+      messagesEl.innerHTML = '';
+      state.messageIds.clear();
+      state.oldestMessageId = null;
+      for (const msg of msgs) {
+        const node = buildMessageNode(msg);
+        if (node) messagesEl.appendChild(node);
+      }
+      emptyHint.classList.toggle('hidden', msgs.length > 0);
+      requestAnimationFrame(scrollToBottom);
+    }
+
+    function isNearBottom() {
+      const c = messagesContainer;
+      return c.scrollHeight - c.scrollTop - c.clientHeight < 100;
+    }
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // ---------- Composer ----------
+    function updateSendButton() {
+      const hasText = messageInput.value.trim().length > 0;
+      const hasFile = !!fileInput.files[0];
+      sendBtn.disabled = !(hasText || hasFile);
+    }
+    function autoGrow() {
+      messageInput.style.height = 'auto';
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 128) + 'px';
+    }
+    messageInput.addEventListener('input', () => { updateSendButton(); autoGrow(); });
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files[0];
+      if (f) {
+        fileChipName.textContent = f.name;
+        fileChip.classList.remove('hidden');
+      } else {
+        fileChip.classList.add('hidden');
+      }
+      updateSendButton();
+    });
+    fileChipRemove.addEventListener('click', () => {
+      fileInput.value = '';
+      fileChip.classList.add('hidden');
+      updateSendButton();
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!state.room || !state.guestName) return;
+      const text = messageInput.value.trim();
+      const file = fileInput.files[0];
+      if (!text && !file) return;
+
+      const send = (filePayload) => {
+        const payload = { room: state.room, guestName: state.guestName };
+        if (text) payload.message = text;
+        if (filePayload) payload.file = filePayload;
+        socket.emit('guestMessage', payload);
+        messageInput.value = '';
+        fileInput.value = '';
+        fileChip.classList.add('hidden');
+        autoGrow();
+        updateSendButton();
+      };
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) =>
+          send({ name: file.name, type: file.type, data: ev.target.result });
+        reader.onerror = () => showToast('Could not read file');
+        reader.readAsDataURL(file);
+      } else {
+        send(null);
+      }
+    });
+
+    // ---------- Pagination ----------
+    messagesContainer.addEventListener('scroll', () => {
+      if (
+        messagesContainer.scrollTop < 80 &&
+        state.hasMoreMessages &&
+        !state.loadingMoreMessages &&
+        state.oldestMessageId
+      ) {
+        state.loadingMoreMessages = true;
+        messagesLoading.classList.remove('hidden');
+        socket.emit('guestLoadMoreMessages', {
+          room: state.room,
+          beforeId: state.oldestMessageId,
+        });
+      }
+    });
+
+    // ---------- Socket ----------
+    function joinIfNeeded() {
+      if (state.guestName && state.room) {
+        socket.emit('guestConnected', { guestName: state.guestName, room: state.room });
+        showChat();
+      }
+    }
+
+    socket.on('connect', () => {
+      // Reconnects also re-join. Server returns a fresh chatHistory; setMessages
+      // wipes the local set, so dedup remains correct after reconnect.
+      joinIfNeeded();
+    });
+
+    socket.on('chatHistory', ({ room, messages, hasMore }) => {
+      if (room !== state.room) return;
+      state.hasMoreMessages = hasMore;
+      state.historyLoaded = true;
+      setMessages(messages);
+    });
+
+    socket.on('chatHistoryAppend', ({ room, messages, hasMore }) => {
+      if (room !== state.room) return;
+      state.hasMoreMessages = hasMore;
+      state.loadingMoreMessages = false;
+      messagesLoading.classList.add('hidden');
+      prependMessages(messages);
+    });
+
+    socket.on('message', (msg) => {
+      if (msg.room !== state.room) return;
+      appendMessage(msg);
+    });
+
+    socket.on('serverError', ({ message }) => showToast(message || 'Something went wrong'));
+    socket.on('connect_error', () => showToast('Connection lost. Reconnecting…'));
+  </script>
+</body>
+</html>

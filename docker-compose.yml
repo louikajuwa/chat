@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    container_name: chat-app
+    ports:
+      - "3002:3000"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: chat
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: sh -c "sleep 15 && nodemon --legacy-watch server.js"
+
+  db:
+    image: mysql:8.0
+    container_name: chat-db
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: chat
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./chat.sql:/docker-entrypoint-initdb.d/chat.sql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: chat-phpmyadmin
+    restart: "no"
+    ports:
+      - "8086:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: root
+
+volumes:
+  db_data:
