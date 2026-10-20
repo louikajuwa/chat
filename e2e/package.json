@@ -1,0 +1,16 @@
+{
+  "name": "chat-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright end-to-end tests for the chat app (run via docker compose --profile e2e run --rm e2e)",
+  "scripts": {
+    "reset-db": "node reset-db.js",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  },
+  "dependencies": {
+    "mysql2": "3.14.0"
+  }
+}

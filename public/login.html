@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin sign in · Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/tw-config.js"></script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+    :focus-visible { outline: 2px solid #1a1a1a; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-paper text-ink antialiased">
+  <main class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-md bg-white border border-line rounded-3xl p-6 sm:p-8 shadow-sm">
+      <div class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted mb-3">
+        <span class="w-6 h-px bg-muted" aria-hidden="true"></span><span>Admin</span>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Sign in.</h1>
+      <p class="text-sm text-muted mb-6">Enter the admin password to view and answer conversations.</p>
+
+      <form method="post" action="/admin/login" class="space-y-4">
+        <div>
+          <label for="password" class="block text-sm font-medium text-ink mb-1.5">Password</label>
+          <input id="password" name="password" type="password" required autofocus
+                 autocomplete="current-password"
+                 class="w-full min-h-[48px] px-4 py-3 bg-paper border border-line rounded-xl text-base sm:text-sm focus:border-ink transition-colors" />
+          <p id="login-error" role="alert" class="hidden mt-2 text-sm text-danger break-words"></p>
+        </div>
+        <button type="submit"
+                class="w-full min-h-[48px] bg-ink text-white py-3 rounded-xl text-sm font-semibold hover:bg-black transition-colors">
+          Sign in
+        </button>
+      </form>
+
+      <a href="/" class="mt-6 inline-flex min-h-[40px] items-center text-sm text-muted hover:text-ink underline underline-offset-2 rounded">
+        Back to home
+      </a>
+    </div>
+  </main>
+
+  <script src="/js/login.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	# Also proxies Socket.IO websocket upgrades.
+	reverse_proxy app:3000
+}

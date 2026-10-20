@@ -5,39 +5,130 @@ services:
     ports:
       - "3002:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    # No env_file: the app must not receive MYSQL_ROOT_PASSWORD. Compose still
+    # reads .env for the ${...} interpolation below.
     environment:
       DB_HOST: db
-      DB_USER: root
-      DB_PASSWORD: root
+      DB_USER: chat_app
+      DB_PASSWORD: ${DB_APP_PASSWORD:?set in .env}
       DB_NAME: chat
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      UPLOAD_DIR: /usr/src/app/uploads
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
-    command: sh -c "sleep 15 && nodemon --legacy-watch server.js"
+      - uploads:/usr/src/app/uploads
+    # node directly (not npm) under tini, so SIGTERM reaches node for a graceful shutdown.
+    init: true
+    command: ["node", "--watch-path=server.js", "--watch-path=src", "server.js"]
+    restart: unless-stopped
 
   db:
     image: mysql:8.0
     container_name: chat-db
     restart: "no"
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in .env}
       MYSQL_DATABASE: chat
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     volumes:
       - db_data:/var/lib/mysql
       - ./chat.sql:/docker-entrypoint-initdb.d/chat.sql
 
+  # One-shot: creates the least-privilege app user and applies db/migrations/*.sql.
+  # Idempotent, runs on every `up`.
+  db-setup:
+    image: mysql:8.0
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in .env}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?set in .env}
+    volumes:
+      - ./db:/db:ro
+    command: ["bash", "/db/setup.sh"]
+
+  # Not started by default: `docker compose --profile tools up -d phpmyadmin`
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: chat-phpmyadmin
+    profiles: ["tools"]
     restart: "no"
     ports:
-      - "8086:80"
+      - "127.0.0.1:8086:80"
     environment:
       PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: root
+
+  # ---- E2E (profile `e2e`, never started by default) ----
+  # Isolated app instance on the throwaway `chat_test` database and its own uploads volume.
+  # Do not run alongside `npm test` (both use chat_test).
+  app-e2e:
+    build: .
+    profiles: ["e2e"]
+    depends_on:
+      db:
+        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    environment:
+      DB_HOST: db
+      DB_USER: chat_app
+      DB_PASSWORD: ${DB_APP_PASSWORD:?set in .env}
+      DB_NAME: chat_test
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      UPLOAD_DIR: /usr/src/app/uploads
+      # All browser traffic comes from one IP: lift the per-IP abuse limits.
+      MAX_SOCKETS_PER_IP: "1000"
+      ROOMS_PER_IP: "100000"
+      MESSAGES_PER_IP: "100000"
+      # The logout spec logs in once per viewport project on top of the global login.
+      LOGIN_MAX_ATTEMPTS: "1000"
+    volumes:
+      - uploads_e2e:/usr/src/app/uploads
+    init: true
+    command: ["node", "server.js"]
+    restart: "no"
+
+  # Playwright runner: docker compose --profile e2e run --rm e2e
+  e2e:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    profiles: ["e2e"]
+    working_dir: /e2e
+    depends_on:
+      app-e2e:
+        condition: service_healthy
+    environment:
+      BASE_URL: http://app-e2e:3000
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DB_HOST: db
+      DB_USER: chat_app
+      DB_PASSWORD: ${DB_APP_PASSWORD:?set in .env}
+      DB_NAME: chat_test
+      CHAT_SQL: /chat.sql
+      CI: "1"
+    volumes:
+      - ./e2e:/e2e
+      - /e2e/node_modules
+      - ./chat.sql:/chat.sql:ro
+    ipc: host
+    command: ["bash", "-c", "npm ci && node reset-db.js && npx playwright test"]
 
 volumes:
   db_data:
+  uploads:
+  uploads_e2e:

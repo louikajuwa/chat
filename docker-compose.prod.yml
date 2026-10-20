@@ -1,0 +1,41 @@
+# Production override:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Requires Compose >= 2.24 (!reset / !override). Set SITE_ADDRESS in .env
+# (e.g. chat.example.com) for automatic Let's Encrypt; default `localhost` uses Caddy's internal CA.
+services:
+  app:
+    build:
+      args:
+        NPM_CI_FLAGS: --omit=dev
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+    # No source bind mount and no anonymous node_modules volume: run the image as built.
+    volumes: !override
+      - uploads:/usr/src/app/uploads
+    command: ["node", "server.js"]
+
+  db:
+    restart: unless-stopped
+    ports: !reset []
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
