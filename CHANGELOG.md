@@ -87,15 +87,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile: `CMD ["node", "server.js"]`; `npm ci` in build.
 - Database volume `db_data` unchanged.
 
-### Manual setup / migration
+### Upgrade notes
 
-- **No database schema changes.** The existing `db_data` volume is compatible.
-- Copy `.env.example` to `.env` and set `ADMIN_PASSWORD` and `SESSION_SECRET` (`openssl rand -hex 32`). Without `ADMIN_PASSWORD`, admin login is disabled.
-- After pulling: `docker compose up -d --build`.
-- If dependencies look stale (node_modules lives in an anonymous volume): `docker compose exec app npm ci`, or `docker compose up -d --build --renew-anon-volumes app`. Do not use `docker compose down -v`, which deletes the database volume.
-- Admin login is at `http://localhost:3002/login.html`.
-- phpMyAdmin is now at `http://127.0.0.1:8086`; MySQL is at `127.0.0.1:3306` only.
-- Run tests: `docker compose exec -T -e DB_NAME=chat_test app npm test`.
+- Rebuild with `docker compose up -d --build`; the `db-setup` service applies migrations automatically.
 
 ## [Unreleased] - 2026-10-17 (follow-up)
 
@@ -112,12 +106,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `test/helpers.js` `setupDb` now drops and recreates tables from `chat.sql` (needed for the FK).
 - `backups/` and `uploads/` added to `.gitignore`.
 
-### Manual steps
-
-- Add `MYSQL_ROOT_PASSWORD` and `DB_APP_PASSWORD` to `.env`. For an existing database volume, rotate the root password with `ALTER USER` first (see README).
-- Run `docker compose up -d --build --renew-anon-volumes app` once.
-- Copy old `public/attachement/*` into the `uploads` volume if not already done.
-
 ### App-side follow-up
 
 - Uploads are written to `UPLOAD_DIR` (default `<app>/uploads`; `/usr/src/app/uploads` volume in compose) and served from there under the unchanged `/attachement/<file>` URL with the same protective headers (`nosniff`, CSP `sandbox`, `Content-Disposition: attachment` for non-images). `public/attachement` is legacy leftovers and is no longer served (also not via encoded paths).
@@ -130,22 +118,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - nodemon removed; `dev` uses `node --watch-path`. ESLint (flat config, `npm run lint`) added; existing lint findings fixed.
 - Tests: 104 (22 added) covering the items above; uploads tests use a throwaway directory instead of `public/attachement`.
 
-### Manual steps (app-side)
-
-- Rebuild once so the image and the `node_modules` volume match the new `package.json`: `docker compose up -d --build --renew-anon-volumes app`.
-- Optional env vars: `TRUST_PROXY`, `MAX_SOCKETS_PER_IP`, `ROOMS_PER_IP`, `MESSAGES_PER_IP`, `MAX_UPLOAD_DIR_BYTES`.
-- Clients that have an open chat from before this change resume it once without a token (legacy claim) and then store the new token. After `uploads:prune --apply`, restart `app` to reset the in-memory upload counter.
-
 ## Follow-up: automated E2E suite
 
 - Added a Playwright end-to-end suite in `e2e/` (`@playwright/test` 1.56.1, Chromium only) covering console/CSP cleanliness, the admin guard and login, the guest flow (reserved name, text, PNG, oversized file), realtime guest/admin exchange, resume and token tampering, End chat, logout, responsive layout (375x812, 390x844, 768x1024, 1366x768, 1920x1080), keyboard focus and ARIA roles.
 - New compose services under the `e2e` profile (not started by default): `app-e2e` (same image as `app`, database `chat_test`, own `uploads_e2e` volume, high per-IP limits) and `e2e` (the `mcr.microsoft.com/playwright:v1.56.1-noble` runner). Existing services are unchanged.
 - `e2e/reset-db.js` drops and recreates the `chat_test` tables from `chat.sql` before each run and refuses unless `DB_NAME` ends with `_test`. The admin logs in once in a Playwright `globalSetup` (login is limited to 5/min/IP) and the session is reused through `storageState`.
 - `e2e/playwright-report`, `e2e/test-results`, `e2e/node_modules` and `e2e/.auth` added to `.gitignore` and `.dockerignore`.
-
-### Manual steps (E2E)
-
-- None for the app. Run `docker compose --profile e2e run --rm e2e` (see README, "End-to-end tests"). Do not run it at the same time as `npm test` (both use `chat_test`).
 
 ## Follow-up: remaining risks resolved - 2026-10-17
 
@@ -176,9 +154,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Removed
 
 - The `root`/`root` fallback in `src/config.js`. The app never connects as root.
-
-### Manual steps
-
-- Run `docker compose up -d --build`. `db-setup` applies migration 002 automatically.
-- Admins must log in again once. Cookies issued before this change are rejected.
-- Optional: set `LOGIN_MAX_ATTEMPTS` in `.env`.

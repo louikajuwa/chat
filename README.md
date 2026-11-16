@@ -290,3 +290,7 @@ See `CODE_REVIEW_REPORT.md` section 8 for the full list and for how each resolve
 - `CODE_REVIEW_REPORT.md`: architecture, findings, fixes and risks
 - `TEST_REPORT.md`: test results and verification
 - `CHANGELOG.md`: changes, including manual setup steps
+
+## License
+
+MIT — see [LICENSE](LICENSE).
